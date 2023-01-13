@@ -6,11 +6,16 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
-class Json : QObject
+class Json : public QObject
 {
     Q_OBJECT
+
 public:
-    Json();
+    Json(QObject *parent = 0);
+    ~Json();
+
+public slots:
+    void parseJson(QByteArray mess);
 };
 
 #endif // JSON_H

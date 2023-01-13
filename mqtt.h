@@ -9,13 +9,14 @@
 /**
  * @brief The Mqtt class
  */
-class Mqtt : QObject
+class Mqtt : public QObject
 {
     Q_OBJECT
 
 public:
     Mqtt(QObject *parent = 0);
     ~Mqtt();
+    void sendMessage(QByteArray mess);
 
 private:
     QMqttClient *client = nullptr;
@@ -24,7 +25,10 @@ private:
 private slots:
     void connect();
     void disconnect();
-    void messageReceived(const QByteArray &message, const QMqttTopicName &topic);
+    QByteArray messageReceived(const QByteArray &message, const QMqttTopicName &topic);
+
+signals:
+    void messageResult(QByteArray ress);
 };
 
 #endif // MQTT_H
