@@ -18,17 +18,17 @@ public:
     ~Mqtt();
     void sendMessage(QByteArray mess);
 
-private:
-    QMqttClient *client = nullptr;
-    QMqttSubscription *topic = nullptr;
-
 private slots:
     void connect();
     void disconnect();
-    QByteArray messageReceived(const QByteArray &message, const QMqttTopicName &topic);
+    void messageReceive(const QByteArray &message, const QMqttTopicName &topic);
 
 signals:
     void messageResult(QByteArray ress);
+
+private:
+    QMqttClient *client = nullptr;
+    QMqttSubscription *topic = nullptr;
 };
 
 #endif // MQTT_H

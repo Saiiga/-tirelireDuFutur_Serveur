@@ -10,7 +10,7 @@ class Client : public QObject
     Q_OBJECT
 
 public:
-    Client(QObject *parent = 0);
+    Client();
     ~Client();
 
 private:

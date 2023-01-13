@@ -1,14 +1,15 @@
 #include "client.h"
 
-Client::Client(QObject *parent) : QObject(parent)
+Client::Client()
 {
-    pMqtt = new Mqtt();
-    pJson = new Json();
+    pMqtt = new Mqtt(this);
+    pJson = new Json(this);
     connect(pMqtt,SIGNAL(messageResult(QByteArray)), pJson ,SLOT(parseJson(QByteArray)));
 
 }
 
 Client::~Client()
 {
-
+    delete pMqtt;
+    delete pJson;
 }
