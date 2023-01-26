@@ -32,7 +32,9 @@ public slots:
 
 private:
     Mqtt *pMqtt = nullptr;
-    void differentActions(const QString action);
+    void differentActions(const QJsonObject keyAction);
+    void addMoney(const QJsonObject addMoney);
+    void getAllData(const QJsonObject requestData);
 };
 
 #endif // JSON_H

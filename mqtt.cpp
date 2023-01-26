@@ -16,17 +16,20 @@
  */
 Mqtt::Mqtt(const QString _hostName, const QByteArray _topicSubscribe, const QByteArray _topicPublish, QObject *parent) : QObject(parent)
 {
+    //récupere les parametres pour la connexion vers serveur MQTT
     hostName = _hostName;
     topicSubscribe = _topicSubscribe;
     topicPublish = _topicPublish;
+    //instancie un client MQTT
     client = new QMqttClient();
-    //param MQTT
+    //param client MQTT
     client->setHostname(hostName);
     client->setPort(1883);
     //signaux
     QObject::connect(client, SIGNAL(connected()), this, SLOT(connect()));
     QObject::connect(client, SIGNAL(disconnected()), this, SLOT(disconnect()));
     QObject::connect(client, SIGNAL(messageReceived(const QByteArray &, const QMqttTopicName &)), this, SLOT(messageReceive(const QByteArray &, const QMqttTopicName &)));
+    //connexion vers le serveur MQTT
     client->connectToHost();
 }
 
@@ -36,7 +39,9 @@ Mqtt::Mqtt(const QString _hostName, const QByteArray _topicSubscribe, const QByt
  */
 Mqtt::~Mqtt()
 {
+    //Deconnexion du serveur MQTT
     client->disconnectFromHost();
+    //supprime les pointeurs
     delete client;
     delete topic;
 }
@@ -50,7 +55,7 @@ void Mqtt::connect()
     topic = client->subscribe(QLatin1String(topicSubscribe));
     if (!topic)
     {
-        qDebug() << "Erreur" << "Impossible de s'abonner !";
+        qDebug() << "Mqtt::connect - " << "[Error] " << "Unable to subscribe!";
         return;
     }
 }
@@ -61,7 +66,7 @@ void Mqtt::connect()
  */
 void Mqtt::disconnect()
 {
-    qDebug() << "Déconnexion du broker";
+    qDebug() << "Mqtt::disconnect - " << "Broker disconnection";
 }
 
 /**
@@ -83,6 +88,7 @@ void Mqtt::sendMessage(const QByteArray mess)
  */
 void Mqtt::messageReceive(const QByteArray &message, const QMqttTopicName &topic)
 {
-    // qDebug() << QDateTime::currentDateTime().toString() << topic.name() << message;
+    // Debug() << QDateTime::currentDateTime().toString() << topic.name() << message;
+    // signal quand un message est recu
     emit messageResult(message);
 }
