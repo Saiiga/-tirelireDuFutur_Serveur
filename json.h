@@ -35,6 +35,15 @@ private:
     void differentActions(const QJsonObject keyAction);
     void addMoney(const QJsonObject addMoney);
     void getAllData(const QJsonObject requestData);
+    void answerWithdraw(const QJsonObject keyAction);
+    //algo retrait
+    void restatedAmountAlgo(const QJsonObject withdrawn);
+    bool coinsInRack(const QList<double> usedCoins, const QList<double> usedTotalAddition, const double retiredAmount);
+    //variable
+    const QString docFolder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    //pieces dispo
+    QList<double> coinsPending;
+    QList<double> additionByCoinsPending;
 };
 
 #endif // JSON_H

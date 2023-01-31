@@ -29,7 +29,6 @@ public:
 private:
     Mqtt *pMqtt = nullptr;
     Json *pJson = nullptr;
-
 };
 
 #endif // CLIENT_H

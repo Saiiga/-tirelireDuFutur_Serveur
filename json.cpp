@@ -75,7 +75,7 @@ void Json::differentActions(const QJsonObject keyAction)
     {
     case 0:
     {
-        qDebug() << "action is : " << keyAction;
+        this->restatedAmountAlgo(keyAction);
         break;
     }
     case 1:
@@ -90,7 +90,7 @@ void Json::differentActions(const QJsonObject keyAction)
     }
     case 3:
     {
-        qDebug() << "action is : " << keyAction;
+        this->answerWithdraw(keyAction);
         break;
     }
     case 4:
@@ -122,8 +122,6 @@ void Json::addMoney(const QJsonObject addMoneyObj)
     {
         //ajout fichier money total
         QJsonArray coinsReceved = addMoneyObj["coins"].toArray();
-        //ouvrir fichier
-        QString docFolder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
         QFile historyFile(docFolder + "/json/totalPieces.json");
         if (historyFile.open(QIODevice::ReadOnly))
         {
@@ -134,47 +132,47 @@ void Json::addMoney(const QJsonObject addMoneyObj)
             QJsonObject jsonFileData = QJsonDocument::fromJson(fileData, &parseError).object();
             if (parseError.error == QJsonParseError::NoError)
             {
-                QJsonArray coinsFile = jsonFileData["coins"].toArray();
+                QJsonArray coinsArray = jsonFileData["coins"].toArray();
                 //insere les nouvelles données
                 for (int i = 0; i < coinsReceved.size(); i++)
                 {
                     QJsonObject objCoinsReceved = coinsReceved[i].toObject();
                     int index = 0;
-                    foreach (const QJsonValue &valueFile, coinsFile)
+                    foreach (const QJsonValue &valueFile, coinsArray)
                     {
-                        QJsonObject objCoinsFile = valueFile.toObject();
-                        if (objCoinsReceved["type"].toDouble() == objCoinsFile["type"].toDouble())
+                        QJsonObject objCoins = valueFile.toObject();
+                        if (objCoinsReceved["type"].toDouble() == objCoins["type"].toDouble())
                         {
                             QJsonObject newObject;
                             int number = objCoinsReceved["number"].toInt()
-                                         + objCoinsFile["number"].toInt();
+                                         + objCoins["number"].toInt();
                             double totalAddition = number * objCoinsReceved["type"].toDouble();
                             //insert dans l'object
                             newObject.insert("type", objCoinsReceved["type"].toDouble());
                             newObject.insert("number", number);
                             newObject.insert("totalAddition", totalAddition);
                             //remplace les valeurs
-                            coinsFile.replace(index, newObject);
+                            coinsArray.replace(index, newObject);
                         }
                         index++;
                     }
                 }
                 //calcule total
                 double numberTotal = 0.00;
-                foreach(const QJsonValue &value, coinsFile) numberTotal += value["totalAddition"].toDouble();
+                foreach(const QJsonValue &value, coinsArray) numberTotal += value["totalAddition"].toDouble();
                 //ajout nombre total
                 jsonFileData.remove("numberTotal");
                 jsonFileData.insert("numberTotal", QJsonValue::fromVariant(numberTotal));
                 //ajout tableau coins
                 jsonFileData.remove("coins");
-                jsonFileData.insert("coins", QJsonValue::fromVariant(coinsFile));
+                jsonFileData.insert("coins", QJsonValue::fromVariant(coinsArray));
                 QJsonDocument doc;
                 doc.setObject(jsonFileData);
                 if (historyFile.open(QIODevice::WriteOnly))
                 {
                     historyFile.write(doc.toJson(QJsonDocument::Indented));
                     historyFile.close();
-                } 
+                }
             }
             else qDebug() << "Json::parseJson - " << "[Error] impossible to interpret the received json because : "
                          << parseError.errorString();
@@ -218,12 +216,16 @@ void Json::addMoney(const QJsonObject addMoneyObj)
     else qDebug() << "Json::differentActions" << "[Error] No open totalPiece file";
 }
 
+/**
+ * @brief Json::getAllData
+ * @param requestData
+ * @details renvoie toutes les donnees disponible a partir d'une date
+ */
 void Json::getAllData(const QJsonObject requestData)
 {
     if (requestData.contains("timestampLastUpdate"))
     {
         double timestamp = requestData["timestampLastUpdate"].toDouble();
-        QString docFolder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
         QFile totalPieceFile(docFolder + "/json/totalPieces.json");
         QFile preciseFile(docFolder + "/json/historical/precise.json");
         QFile meanFile(docFolder + "/json/historical/mean.json");
@@ -284,4 +286,218 @@ void Json::getAllData(const QJsonObject requestData)
         }
         else qDebug() << "Json::parseJson - " << "[Error] file null " ;
     }
+}
+
+/**
+ * @brief Json::answerWithdraw
+ * @param keyAction
+ * @details retire la monnaie du json
+ */
+void Json::answerWithdraw(const QJsonObject keyAction)
+{
+    if(keyAction.contains("status"))
+    {
+        bool status = keyAction["status"].toBool();
+        if(status && !coinsPending.isEmpty() && !additionByCoinsPending.isEmpty())
+        {
+            QFile pieceFile(docFolder + "/json/totalPieces.json");
+            if (pieceFile.open(QIODevice::ReadOnly))
+            {
+                QByteArray fileData = pieceFile.readAll();
+                pieceFile.close();
+                QJsonObject jsonFileData = QJsonDocument::fromJson(fileData).object();
+                QJsonArray coinsArray = jsonFileData["coins"].toArray();
+                for (int i = 0; i < coinsPending.size(); i++)
+                {
+                    int index = 0;
+                    foreach (const QJsonValue &value, coinsArray)
+                    {
+                        QJsonObject objCoins = value.toObject();
+                        if (coinsPending[i] == objCoins["type"].toDouble())
+                        {
+                            QJsonObject newObject;
+                            int number = objCoins["number"].toInt() - additionByCoinsPending[i];
+                            double totalAddition = number * coinsPending[i];
+                            //insert dans l'object
+                            newObject.insert("type", coinsPending[i]);
+                            newObject.insert("number", number);
+                            newObject.insert("totalAddition", totalAddition);
+                            //remplace les valeurs
+                            coinsArray.replace(index, newObject);
+                        }
+                        index++;
+                    }
+                }
+                //calcule total
+                double numberTotal = 0.00;
+                foreach(const QJsonValue &value, coinsArray) numberTotal += value["totalAddition"].toDouble();
+                //ajout nombre total
+                jsonFileData.remove("numberTotal");
+                jsonFileData.insert("numberTotal", QJsonValue::fromVariant(numberTotal));
+                //ajout tableau coins
+                jsonFileData.remove("coins");
+                jsonFileData.insert("coins", QJsonValue::fromVariant(coinsArray));
+                QJsonDocument doc;
+                doc.setObject(jsonFileData);
+                if (pieceFile.open(QIODevice::WriteOnly))
+                {
+                    pieceFile.write(doc.toJson(QJsonDocument::Indented));
+                    pieceFile.close();
+                }
+
+            }
+        }
+        else qDebug() << "Json::answerWithdraw - " << "[Error] the piggy bank failed to withdraw the requested money !";
+        additionByCoinsPending.clear();
+        coinsPending.clear();
+    }
+    else qDebug() << "Json::answerWithdraw - " << "key status unknown";
+
+}
+
+/**
+ * @brief Json::restatedAmountAlgo
+ * @param withdrawn
+ * @details algor retirer des pieces
+ */
+void Json::restatedAmountAlgo(const QJsonObject withdrawn)
+{
+    static int attempt = 0;
+    if(coinsPending.isEmpty() && additionByCoinsPending.isEmpty())
+    {
+        attempt = 0;
+        QFile totalPieceFile(docFolder + "/json/totalPieces.json");
+        QByteArray totalPieceData;
+        if (totalPieceFile.open(QIODevice::ReadOnly))
+        {
+            totalPieceData = totalPieceFile.readAll();
+            totalPieceFile.close();
+        }
+        if ((!totalPieceData.isNull()))
+        {
+            QJsonObject totalPieceObject = QJsonDocument::fromJson(totalPieceData).object();
+            if (withdrawn.contains("withdrawn"))
+            {
+                double retiredAmount = withdrawn["withdrawn"].toDouble();
+                //pieces dispo
+                QList<double> coins;
+                QList<double> additionByCoins;
+                //recupe fichier json
+                double totalAddition = totalPieceObject["numberTotal"].toDouble();
+                QJsonArray coinsArray = totalPieceObject["coins"].toArray();
+                for (int i = 0; i < coinsArray.size(); i++)
+                {
+                    QJsonObject myCoins = coinsArray[i].toObject();
+                    additionByCoins.push_back(myCoins["totalAddition"].toDouble());
+                    coins.push_back(myCoins["type"].toDouble());
+                }
+                double totalCurrentRackAmount = 0;
+                QList<double> usedCoins;
+                QList<double> usedAdditionByCoins;
+                bool coinsInRackOk = false;
+
+                if (totalAddition >= retiredAmount)
+                {
+                    for (int i = 0; i < coins.size() ; i++)
+                    {
+                        if (totalCurrentRackAmount < retiredAmount || !coinsInRackOk)
+                        {
+                            totalCurrentRackAmount += additionByCoins[i];
+                            usedAdditionByCoins.push_back(additionByCoins[i]);
+                            usedCoins.push_back(coins[i]);
+                            //a modifier
+                            coinsInRackOk = this->coinsInRack(usedCoins, usedAdditionByCoins, retiredAmount);
+                        }
+                    }
+                }
+                else qDebug() << "Json::restatedAmountAlgo - " << "not enough parts";
+            }
+            else if (withdrawn.contains("withdrawnDetail"))
+            {
+
+            }
+            else
+                qDebug() << "Json::restatedAmountAlgo - "
+                         << "[Error] action withdrawn";
+        }
+    }
+    else
+    {
+        if(attempt < 3)
+        {
+            attempt++;
+            QTimer::singleShot(500,this, [this,withdrawn](){this->restatedAmountAlgo(withdrawn);} );
+        }
+        else
+        {
+            attempt=0;
+            additionByCoinsPending.clear();
+            coinsPending.clear();
+        }
+    }
+}
+
+/**
+ * @brief Json::coinsInRack
+ * @param usedCoins
+ * @param usedTotalAddition
+ * @param retiredAmount
+ * @return bool
+ * @details si fonctionne alors retirer
+ */
+bool Json::coinsInRack(const QList<double> usedCoins, const QList<double> usedTotalAddition, const double retiredAmount)
+{
+    double remainingAmount = retiredAmount*10;
+    QList<double> listPieceRetire;
+    QList<double> typePieces;
+    for (int i = usedCoins.size() - 1; i >= 0; i--)
+    {
+        if ((usedTotalAddition[i]*10 > remainingAmount) && (remainingAmount > 0))
+        {
+            int dividende = (int)(retiredAmount*10);
+            int diviseur = (int)(usedCoins[i]*10);
+            int moduloRest = dividende % diviseur;
+            int montantPieceRetire = (remainingAmount - moduloRest);
+            int nbrePiecesRetire = montantPieceRetire / (usedCoins[i] * 10);
+            remainingAmount = moduloRest;
+            listPieceRetire.push_back(nbrePiecesRetire);
+            typePieces.push_back(usedCoins[i]);
+        }
+        else if ((usedTotalAddition[i]*10 <= remainingAmount)  && (remainingAmount > 0))
+        {
+            remainingAmount -= usedTotalAddition[i] * 10;
+            listPieceRetire.push_back(usedTotalAddition[i]/usedCoins[i]);
+            typePieces.push_back(usedCoins[i]);
+
+        }
+    }
+    double total;
+    for (int i = 0; i < listPieceRetire.size(); i++) total += typePieces[i] * listPieceRetire[i];
+    if (total == retiredAmount)
+    {
+        //requete vers l'esp32 :
+        QJsonObject requestWithdraw;
+        QJsonObject esp32;
+        esp32.insert("action", "requestWithdraw");
+        QJsonArray coins;
+        for (int i = 0; i < listPieceRetire.size(); i++)
+        {
+            QJsonObject newObject;
+            newObject.insert("type", typePieces[i]);
+            newObject.insert("number", listPieceRetire[i]);
+            coins.push_back(newObject);
+            //save piece for json
+            coinsPending.push_back(typePieces[i]);
+            additionByCoinsPending.push_back(listPieceRetire[i]);
+        }
+        esp32.insert("coins", coins);
+        requestWithdraw.insert("esp32", esp32);
+        //return qbyteArray
+        QJsonDocument doc;
+        doc.setObject(requestWithdraw);
+        //envoie vers le MQTT
+        pMqtt->sendMessage(doc.toJson(/*QJsonDocument::Compact*/QJsonDocument::Indented));
+        return true;
+    }
+    else return false;
 }

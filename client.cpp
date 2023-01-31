@@ -19,8 +19,6 @@ Client::Client()
     pJson = new Json(pMqtt, this);
     //signal pour un message recu envoie vers le parseJson
     connect(pMqtt,SIGNAL(messageResult(const QByteArray)), pJson ,SLOT(parseJson(const QByteArray)));
-    //test
-    // QTimer::singleShot(1000,this, [this]() {pMqtt->sendMessage("{\"server\":{\"action\":\"withdrawn\"}}");});
 }
 
 /**
