@@ -36,6 +36,7 @@ private:
     void addMoney(const QJsonObject addMoney);
     void getAllData(const QJsonObject requestData);
     void answerWithdraw(const QJsonObject keyAction);
+    void requestHistoryServer(const QJsonObject keyAction);
     //algo retrait
     void restatedAmountAlgo(const QJsonObject withdrawn);
     bool coinsInRack(const QList<double> usedCoins, const QList<double> usedTotalAddition, const double retiredAmount);

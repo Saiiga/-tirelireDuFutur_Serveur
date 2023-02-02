@@ -15,7 +15,7 @@
  */
 Client::Client()
 {
-    pMqtt = new Mqtt("broker.emqx.io", "testJsonParse", "testJsonParse", this);
+    pMqtt = new Mqtt("broker.emqx.io", "mqttTirelireConnecteYnov", "mqttTirelireConnecteYnov", this);
     pJson = new Json(pMqtt, this);
     //signal pour un message recu envoie vers le parseJson
     connect(pMqtt,SIGNAL(messageResult(const QByteArray)), pJson ,SLOT(parseJson(const QByteArray)));

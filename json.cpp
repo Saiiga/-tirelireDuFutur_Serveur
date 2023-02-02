@@ -80,7 +80,7 @@ void Json::differentActions(const QJsonObject keyAction)
     }
     case 1:
     {
-        qDebug() << "action is : " << keyAction;
+        this->requestHistoryServer(keyAction);
         break;
     }
     case 2:
@@ -355,6 +355,64 @@ void Json::answerWithdraw(const QJsonObject keyAction)
 
 }
 
+void Json::requestHistoryServer(const QJsonObject keyAction)
+{
+    if (keyAction.contains("timestampLastUpdate"))
+    {
+        double timestamp = keyAction["timestampLastUpdate"].toDouble();
+        QFile preciseFile(docFolder + "/json/historical/precise.json");
+        QFile meanFile(docFolder + "/json/historical/mean.json");
+        QByteArray preciseData;
+        QByteArray meanData;
+        if (preciseFile.open(QIODevice::ReadOnly))
+        {
+            preciseData = preciseFile.readAll();
+            preciseFile.close();
+        }
+        if (meanFile.open(QIODevice::ReadOnly))
+        {
+            meanData = meanFile.readAll();
+            meanFile.close();
+        }
+        if ((!preciseData.isNull()) || (!meanData.isNull()))
+        {
+            QJsonObject newPreciseObject;
+            QJsonParseError parseError;
+            QJsonObject preciseJson = QJsonDocument::fromJson(preciseData, &parseError).object();
+            if (parseError.error == QJsonParseError::NoError)
+            {
+                QJsonArray preciseArray = preciseJson["precise"].toArray();
+                QJsonArray newPreciseArray;
+                foreach (const QJsonValue myPrecise, preciseArray)
+                {
+                    double dateOfPrecise = myPrecise["date"].toDouble();
+                    if(timestamp <= dateOfPrecise) newPreciseArray.push_back(myPrecise);
+                }
+                newPreciseObject.insert("precise", newPreciseArray);
+            }
+            else qDebug() << "Json::parseJson - " << "[Error] impossible to interpret the received json because : "
+                         << parseError.errorString();
+            QJsonObject meanJson = QJsonDocument::fromJson(meanData).object();
+            //appMobile
+            QJsonObject mobileAppJson;
+            //requete vers l'app :
+            QJsonObject historyJson;
+            historyJson.insert("mean",meanJson["mean"].toObject());
+            historyJson.insert("precise", newPreciseObject["precise"].toArray());
+            //ajout tout
+            QJsonObject getAllDataJson;
+            mobileAppJson.insert("history", historyJson);
+            getAllDataJson.insert("mobileApp", mobileAppJson);
+            //return qbyteArray
+            QJsonDocument doc;
+            doc.setObject(getAllDataJson);
+            //envoie vers le MQTT
+            pMqtt->sendMessage(doc.toJson(/*QJsonDocument::Compact*/QJsonDocument::Indented));
+        }
+        else qDebug() << "Json::parseJson - " << "[Error] file null " ;
+    }
+}
+
 /**
  * @brief Json::restatedAmountAlgo
  * @param withdrawn
@@ -405,20 +463,104 @@ void Json::restatedAmountAlgo(const QJsonObject withdrawn)
                             totalCurrentRackAmount += additionByCoins[i];
                             usedAdditionByCoins.push_back(additionByCoins[i]);
                             usedCoins.push_back(coins[i]);
-                            //a modifier
+                            //TODO : a modifier
                             coinsInRackOk = this->coinsInRack(usedCoins, usedAdditionByCoins, retiredAmount);
                         }
                     }
                 }
                 else qDebug() << "Json::restatedAmountAlgo - " << "not enough parts";
             }
-            else if (withdrawn.contains("withdrawnDetail"))
+            if (withdrawn.contains("withdrawnDetail"))
             {
+                QJsonArray withdrawnDetailArray = withdrawn["withdrawnDetail"].toArray();
+                //recupe fichier json
+                QJsonArray coinsArray = totalPieceObject["coins"].toArray();
+                QList<double> typePieces;
+                QList<double> listPieceRetire;
+                for (int i = 0; i < withdrawnDetailArray.size(); i++)
+                {
+                    QJsonObject withdrawnDetailObj = withdrawnDetailArray[i].toObject();
+                    QStringList key = withdrawnDetailObj.keys();
+                    for (int var = 0; var < coinsArray.size() ; var++)
+                    {
+                        QString myType = key[0];
+                        QJsonObject myCoins = coinsArray[var].toObject();
 
+                        if(myType.toDouble() == myCoins["type"].toDouble())
+                        {
+                            if(myCoins["number"].toInt() >= myCoins[myType].toInt())
+                            {
+                                typePieces.push_back(myType.toDouble());
+                                listPieceRetire.push_back(withdrawnDetailObj[myType].toDouble());
+                                QJsonObject esp32;
+                                esp32.insert("action", "requestWithdraw");
+                                esp32.insert("type", myType.toDouble());
+                                esp32.insert("number", withdrawnDetailObj[myType].toDouble());
+                                //requete vers l'esp32 :
+                                QJsonObject requestWithdraw;
+                                requestWithdraw.insert("esp32", esp32);
+                                //return qbyteArray
+                                QJsonDocument doc;
+                                doc.setObject(requestWithdraw);
+                                //envoie vers le MQTT
+                                pMqtt->sendMessage(doc.toJson(/*QJsonDocument::Compact*/QJsonDocument::Indented));
+                            }
+                        }
+                    }
+                }
+                if(!typePieces.isEmpty() && !listPieceRetire.isEmpty())
+                {
+                    QFile pieceFile(docFolder + "/json/totalPieces.json");
+                    if (pieceFile.open(QIODevice::ReadOnly))
+                    {
+                        QByteArray fileData = pieceFile.readAll();
+                        pieceFile.close();
+                        QJsonObject jsonFileData = QJsonDocument::fromJson(fileData).object();
+                        QJsonArray coinsArray = jsonFileData["coins"].toArray();
+                        for (int i = 0; i < typePieces.size(); i++)
+                        {
+                            int index = 0;
+                            foreach (const QJsonValue &value, coinsArray)
+                            {
+                                QJsonObject objCoins = value.toObject();
+                                if (typePieces[i] == objCoins["type"].toDouble())
+                                {
+                                    QJsonObject newObject;
+                                    int number = objCoins["number"].toInt() - listPieceRetire[i];
+                                    double totalAddition = number * typePieces[i];
+                                    //insert dans l'object
+                                    newObject.insert("type", typePieces[i]);
+                                    newObject.insert("number", number);
+                                    newObject.insert("totalAddition", totalAddition);
+                                    //remplace les valeurs
+                                    coinsArray.replace(index, newObject);
+                                }
+                                index++;
+                            }
+                        }
+                        //calcule total
+                        double numberTotal = 0.00;
+                        foreach(const QJsonValue &value, coinsArray) numberTotal += value["totalAddition"].toDouble();
+                        //ajout nombre total
+                        jsonFileData.remove("numberTotal");
+                        jsonFileData.insert("numberTotal", QJsonValue::fromVariant(numberTotal));
+                        //ajout tableau coins
+                        jsonFileData.remove("coins");
+                        jsonFileData.insert("coins", QJsonValue::fromVariant(coinsArray));
+                        QJsonDocument doc;
+                        doc.setObject(jsonFileData);
+                        if (pieceFile.open(QIODevice::WriteOnly))
+                        {
+                            pieceFile.write(doc.toJson(QJsonDocument::Indented));
+                            pieceFile.close();
+                        }
+
+                    }
+                }
             }
-            else
-                qDebug() << "Json::restatedAmountAlgo - "
-                         << "[Error] action withdrawn";
+            if(!withdrawn.contains("withdrawn") && !withdrawn.contains("withdrawnDetail"))
+                qDebug() << "Json::restatedAmountAlgo - " << "[Error] action withdrawn";
+
         }
     }
     else
@@ -475,28 +617,24 @@ bool Json::coinsInRack(const QList<double> usedCoins, const QList<double> usedTo
     for (int i = 0; i < listPieceRetire.size(); i++) total += typePieces[i] * listPieceRetire[i];
     if (total == retiredAmount)
     {
-        //requete vers l'esp32 :
-        QJsonObject requestWithdraw;
-        QJsonObject esp32;
-        esp32.insert("action", "requestWithdraw");
-        QJsonArray coins;
         for (int i = 0; i < listPieceRetire.size(); i++)
         {
-            QJsonObject newObject;
-            newObject.insert("type", typePieces[i]);
-            newObject.insert("number", listPieceRetire[i]);
-            coins.push_back(newObject);
+            //requete vers l'esp32 :
+            QJsonObject requestWithdraw;
+            QJsonObject esp32;
+            esp32.insert("action", "requestWithdraw");
+            esp32.insert("type", typePieces[i]);
+            esp32.insert("number", listPieceRetire[i]);
+            requestWithdraw.insert("esp32", esp32);
+            //return qbyteArray
+            QJsonDocument doc;
+            doc.setObject(requestWithdraw);
+            //envoie vers le MQTT
+            pMqtt->sendMessage(doc.toJson(/*QJsonDocument::Compact*/QJsonDocument::Indented));
             //save piece for json
             coinsPending.push_back(typePieces[i]);
             additionByCoinsPending.push_back(listPieceRetire[i]);
         }
-        esp32.insert("coins", coins);
-        requestWithdraw.insert("esp32", esp32);
-        //return qbyteArray
-        QJsonDocument doc;
-        doc.setObject(requestWithdraw);
-        //envoie vers le MQTT
-        pMqtt->sendMessage(doc.toJson(/*QJsonDocument::Compact*/QJsonDocument::Indented));
         return true;
     }
     else return false;
