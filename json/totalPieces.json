@@ -1,0 +1,30 @@
+{
+    "coins": [
+        {
+            "number": 10,
+            "totalAddition": 1,
+            "type": 0.1
+        },
+        {
+            "number": 1,
+            "totalAddition": 0.2,
+            "type": 0.2
+        },
+        {
+            "number": 36,
+            "totalAddition": 18,
+            "type": 0.5
+        },
+        {
+            "number": 35,
+            "totalAddition": 35,
+            "type": 1
+        },
+        {
+            "number": 23,
+            "totalAddition": 46,
+            "type": 2
+        }
+    ],
+    "numberTotal": 100.2
+}

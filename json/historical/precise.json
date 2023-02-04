@@ -1,0 +1,91 @@
+{
+    "precise": [
+        {
+            "coins": [
+                {
+                    "number": 2,
+                    "type": 2
+                },
+                {
+                    "number": 1,
+                    "type": 1
+                },
+                {
+                    "number": 3,
+                    "type": 0.5
+                }
+            ],
+            "date": 1674727107
+        },
+        {
+            "coins": [
+                {
+                    "number": 2,
+                    "type": 1
+                },
+                {
+                    "number": 3,
+                    "type": 0.5
+                }
+            ],
+            "date": 1674727108
+        },
+        {
+            "coins": [
+                {
+                    "number": 2,
+                    "type": 1
+                },
+                {
+                    "number": 3,
+                    "type": 0.5
+                }
+            ],
+            "date": 1674727109
+        },
+        {
+            "coins": [
+                {
+                    "number": 2,
+                    "type": 1
+                },
+                {
+                    "number": 3,
+                    "type": 0.5
+                }
+            ],
+            "date": 1674727110
+        },
+        {
+            "coins": [
+                {
+                    "number": 2,
+                    "type": 1
+                },
+                {
+                    "number": 3,
+                    "type": 0.5
+                }
+            ],
+            "date": 1674727111
+        },
+        {
+            "coins": [
+                {
+                    "number": 10,
+                    "type": 0.1
+                }
+            ],
+            "date": 1675168859
+        },
+        {
+            "coins": [
+                {
+                    "number": 1,
+                    "type": 0.2
+                }
+            ],
+            "date": 1675168860
+        }
+    ]
+}
