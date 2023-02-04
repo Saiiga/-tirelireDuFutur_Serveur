@@ -88,7 +88,7 @@ void Mqtt::sendMessage(const QByteArray mess)
  */
 void Mqtt::messageReceive(const QByteArray &message, const QMqttTopicName &topic)
 {
-    // Debug() << QDateTime::currentDateTime().toString() << topic.name() << message;
+     qDebug() << QDateTime::currentDateTime().toString() << topic.name() << message;
     // signal quand un message est recu
     emit messageResult(message);
 }
